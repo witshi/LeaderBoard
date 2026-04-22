@@ -1,4 +1,4 @@
-# Leaderboard Red-Black Tree (RBT) - Hướng dẫn tập trung vào môn học
+# Leaderboard Red-Black Tree (RBT) - Demo dành cho môn học Cấu trúc dữ liệu và giải thuật
 
 ## 1) Ứng dụng này làm được gì?
 Ứng dụng mô phỏng bảng xếp hạng người chơi và trực quan hóa dữ liệu bằng cây Red-Black Tree.
