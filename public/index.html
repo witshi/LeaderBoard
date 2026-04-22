@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaderboard RBT Visualizer</title>
+  <link rel="stylesheet" href="./assets/css/styles.css" />
+</head>
+<body>
+  <main class="split-layout">
+    <section class="tree-panel">
+      <header class="panel-header">
+        <h1>Bảng xếp hạng cây đỏ đen</h1>
+        <p>Top 10 sẽ có viền vàng phát sáng.</p>
+      </header>
+      <div class="svg-wrap">
+        <svg id="treeSvg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </section>
+
+    <aside class="control-panel">
+      <h2>Điền thông tin</h2>
+      <form id="scoreForm" autocomplete="off">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" maxlength="50" placeholder="Nhập username" required />
+
+        <label for="score">Điểm số (số nguyên 0 đến 1000)</label>
+        <input id="score" name="score" type="number" min="0" max="1000" step="1" placeholder="Ví dụ: 250" required />
+
+        <button id="submitBtn" type="submit" disabled>Tham gia vào bảng xếp hạng</button>
+      </form>
+
+      <div class="info-card">
+        <p id="rankText">Rank của bạn: chưa có</p>
+        <p id="statusText" class="status">Sẵn sàng.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="./assets/js/app.js"></script>
+</body>
+</html>

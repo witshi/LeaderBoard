@@ -1,0 +1,153 @@
+:root {
+  --bg-1: #0d1b2a;
+  --bg-2: #1b263b;
+  --panel: #e0e1dd;
+  --ink: #0b132b;
+  --accent: #ff6b35;
+  --muted: #65738a;
+  --gold: #ffd166;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top right, #415a77 0%, var(--bg-1) 45%, #030712 100%);
+  color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.split-layout {
+  display: grid;
+  grid-template-columns: 7fr 3fr;
+  min-height: 100vh;
+}
+
+.tree-panel {
+  padding: 1.2rem;
+  border-right: 1px solid rgba(224, 225, 221, 0.15);
+}
+
+.panel-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  letter-spacing: 0.3px;
+}
+
+.panel-header p {
+  margin: 0.4rem 0 1rem;
+  color: #c8d4e0;
+}
+
+.svg-wrap {
+  height: calc(100vh - 110px);
+  background: linear-gradient(145deg, rgba(13, 27, 42, 0.35), rgba(27, 38, 59, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+#treeSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.control-panel {
+  background: linear-gradient(180deg, #f6f7eb 0%, var(--panel) 100%);
+  color: var(--ink);
+  padding: 1.4rem;
+}
+
+.control-panel h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+label {
+  font-weight: 700;
+}
+
+input {
+  padding: 0.72rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #b9c1cc;
+  font-size: 1rem;
+}
+
+input:disabled {
+  background: #eceff4;
+  color: #5f6b7a;
+}
+
+button {
+  margin-top: 0.5rem;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(120deg, #ff6b35, #f2545b);
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.info-card {
+  margin-top: 1.1rem;
+  padding: 0.9rem;
+  border-radius: 12px;
+  border: 1px solid #c8ced8;
+  background: #ffffff;
+}
+
+.status {
+  margin: 0.5rem 0 0;
+  color: #1d3557;
+  line-height: 1.4;
+}
+
+.node-label {
+  font-size: 12px;
+  fill: #f8f9fa;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-weight: 700;
+}
+
+.node-score {
+  font-size: 10px;
+  fill: #f8f9fa;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+@media (max-width: 980px) {
+  .split-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tree-panel {
+    border-right: none;
+    border-bottom: 1px solid rgba(224, 225, 221, 0.15);
+  }
+
+  .svg-wrap {
+    height: 55vh;
+  }
+}
