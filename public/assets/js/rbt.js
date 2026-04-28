@@ -50,14 +50,7 @@ export class RedBlackTree {
       // Earlier insertion (smaller id) has higher priority when score/time tie.
       return a.id < b.id ? 1 : -1;
     }
-    
-    //Nếu cả điểm và thời gian đạt được điểm đều giống nhau, so sánh theo tên người dùng.
-    if (a.username < b.username) {
-      return -1;
-    }
-    if (a.username > b.username) {
-      return 1;
-    }
+
     return 0;
   }
 

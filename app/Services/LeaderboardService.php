@@ -36,12 +36,12 @@ final class LeaderboardService
         $sql = 'INSERT INTO leaderboard (username, score, owner_client_id)
                 VALUES (:username, :score, :owner_client_id)
                 ON DUPLICATE KEY UPDATE
-                    score = VALUES(score),
-                    owner_client_id = COALESCE(owner_client_id, VALUES(owner_client_id)),
                     score_achieved_at = CASE
                         WHEN score <> VALUES(score) THEN CURRENT_TIMESTAMP
                         ELSE score_achieved_at
-                    END';
+                    END,
+                    score = VALUES(score),
+                    owner_client_id = COALESCE(owner_client_id, VALUES(owner_client_id))';
 
         $statement = $pdo->prepare($sql);
         $statement->execute([

@@ -20,12 +20,6 @@ export class BinarySearchTree {
       return a.id < b.id ? 1 : -1;
     }
 
-    if (a.username < b.username) {
-      return -1;
-    }
-    if (a.username > b.username) {
-      return 1;
-    }
     return 0;
   }
 

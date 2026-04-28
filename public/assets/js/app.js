@@ -20,8 +20,6 @@ const submitBtn = document.getElementById("submitBtn");
 const leaveBtn = document.getElementById("leaveBtn");
 const statusText = document.getElementById("statusText");
 const rankText = document.getElementById("rankText");
-const rbtTimeText = document.getElementById("rbtTime");
-const bstTimeText = document.getElementById("bstTime");
 
 function getOrCreateClientId() {
   let clientId = localStorage.getItem("lb_client_id");
@@ -82,21 +80,16 @@ function resetLocalUser() {
 }
 
 function toSortedRankList(players) {
-  return [...players].sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
+  return [...players];
+}
 
-    if (a.scoreAchievedAt !== b.scoreAchievedAt) {
-      return a.scoreAchievedAt.localeCompare(b.scoreAchievedAt);
-    }
+function getRankFromTree(activeTree, username) {
+  if (!username) {
+    return -1;
+  }
 
-    if (a.id !== b.id) {
-      return a.id - b.id;
-    }
-
-    return a.username.localeCompare(b.username);
-  });
+  const list = toSortedRankList(activeTree.reverseInOrder());
+  return list.findIndex((item) => item.username === username);
 }
 
 function updateRankText() {
@@ -106,25 +99,62 @@ function updateRankText() {
     return;
   }
 
-  const list = toSortedRankList(tree.reverseInOrder());
-  const rankIndex = list.findIndex((item) => item.username === currentUser);
+  const rankIndex = getRankFromTree(tree, currentUser);
 
   if (rankIndex === -1) {
     rankText.textContent = "Rank của bạn: chưa có";
     return;
   }
 
-  rankText.textContent = `Rank của bạn: #${rankIndex + 1} (điểm: ${list[rankIndex].score})`;
+  const rbtList = toSortedRankList(tree.reverseInOrder());
+  rankText.textContent = `Rank của bạn: #${rankIndex + 1} (điểm: ${rbtList[rankIndex].score})`;
+
+}
+
+function getZoomScale(nodeCount) {
+  if (nodeCount <= 20) {
+    return 1.8;
+  }
+  if (nodeCount <= 40) {
+    return 1.4;
+  }
+  if (nodeCount <= 70) {
+    return 1.1;
+  }
+  return 0.95;
+}
+
+function getNodeRadius(nodeCount) {
+  if (nodeCount <= 20) {
+    return 34;
+  }
+  if (nodeCount <= 40) {
+    return 30;
+  }
+  return 28;
 }
 
 function drawTree(svg, activeTree, lastPositions) {
-  const width = 1400;
-  const height = 900;
+  const baseWidth = 1400;
+  const baseHeight = 900;
+  const nodeCount = activeTree.countNodes();
+  const zoomScale = getZoomScale(nodeCount);
+  const nodeRadius = getNodeRadius(nodeCount);
+  const width = baseWidth / zoomScale;
+  const height = baseHeight / zoomScale;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.innerHTML = "";
 
   activeTree.assignPositions(width, 110);
-  const top10 = new Set(toSortedRankList(tree.reverseInOrder()).slice(0, 10).map((p) => p.username));
+  const nodes = activeTree.nodes();
+  let maxY = 0;
+  for (const node of nodes) {
+    if (node.y > maxY) {
+      maxY = node.y;
+    }
+  }
+  const dynamicHeight = Math.max(height, maxY + 140);
+  svg.setAttribute("viewBox", `0 0 ${width} ${dynamicHeight}`);
 
   const animatedEdges = [];
   const animatedNodes = [];
@@ -156,7 +186,7 @@ function drawTree(svg, activeTree, lastPositions) {
     }
   }
 
-  for (const node of activeTree.nodes()) {
+  for (const node of nodes) {
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     group.setAttribute("class", "tree-node");
     group.dataset.username = node.player.username;
@@ -169,13 +199,10 @@ function drawTree(svg, activeTree, lastPositions) {
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", "0");
     circle.setAttribute("cy", "0");
-    circle.setAttribute("r", "28");
+    circle.setAttribute("r", String(nodeRadius));
     circle.setAttribute("fill", node.color === "RED" ? "#e63946" : "#1b1b1e");
-    circle.setAttribute("stroke", top10.has(node.player.username) ? "#ffd166" : "#f1faee");
-    circle.setAttribute("stroke-width", top10.has(node.player.username) ? "4" : "2");
-    if (top10.has(node.player.username)) {
-      circle.style.filter = "drop-shadow(0px 0px 8px #ffd166)";
-    }
+    circle.setAttribute("stroke", "#f1faee");
+    circle.setAttribute("stroke-width", "2");
 
     const userText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     userText.setAttribute("x", "0");
@@ -251,7 +278,8 @@ function syncTreeWithApiData(scores) {
     ])
   );
 
-  const rbtStart = performance.now();
+  let hasChanges = false;
+
   for (const [username, oldData] of state.scoresByUser.entries()) {
     if (!incoming.has(username)) {
       tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
@@ -284,9 +312,7 @@ function syncTreeWithApiData(scores) {
       });
     }
   }
-  const rbtEnd = performance.now();
 
-  const bstStart = performance.now();
   for (const [username, oldData] of state.scoresByUser.entries()) {
     if (!incoming.has(username)) {
       bst.delete(bst.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
@@ -319,10 +345,6 @@ function syncTreeWithApiData(scores) {
       });
     }
   }
-  const bstEnd = performance.now();
-
-  rbtTimeText.textContent = `RBT: ${Math.max(0, rbtEnd - rbtStart).toFixed(2)} ms`;
-  bstTimeText.textContent = `BST: ${Math.max(0, bstEnd - bstStart).toFixed(2)} ms`;
 
   state.scoresByUser = incoming;
 }
