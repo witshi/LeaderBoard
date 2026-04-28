@@ -32,8 +32,8 @@ export class RedBlackTree {
     this.root = this.nil;
   }
 
-  makeKey(score, scoreUpdatedAt, id, username) {
-    return { score, scoreUpdatedAt, id, username };
+  makeKey(score, scoreAchievedAt, id, username) {
+    return { score, scoreAchievedAt, id, username };
   }
 
   compareKeys(a, b) {
@@ -41,9 +41,9 @@ export class RedBlackTree {
       return a.score - b.score;
     }
 
-    if (a.scoreUpdatedAt !== b.scoreUpdatedAt) {
-      // Earlier update keeps higher priority when score ties.
-      return a.scoreUpdatedAt < b.scoreUpdatedAt ? 1 : -1;
+    if (a.scoreAchievedAt !== b.scoreAchievedAt) {
+      // Earlier achievement keeps higher priority when score ties.
+      return a.scoreAchievedAt < b.scoreAchievedAt ? 1 : -1;
     }
 
     if (a.id !== b.id) {
@@ -102,7 +102,7 @@ export class RedBlackTree {
   }
 
   insert(player) {
-    const key = this.makeKey(player.score, player.scoreUpdatedAt, player.id, player.username);
+    const key = this.makeKey(player.score, player.scoreAchievedAt, player.id, player.username);
     const node = new RBNode(key, player, RED, this.nil);
 
     let parent = this.nil;

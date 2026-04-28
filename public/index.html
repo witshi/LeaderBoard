@@ -13,8 +13,19 @@
         <h1>Bảng xếp hạng cây đỏ đen</h1>
         <p>Top 10 sẽ có viền vàng phát sáng.</p>
       </header>
-      <div class="svg-wrap">
-        <svg id="treeSvg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="tree-compare">
+        <div class="tree-card">
+          <h3>Red-Black Tree</h3>
+          <div class="svg-wrap">
+            <svg id="rbtSvg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+        </div>
+        <div class="tree-card">
+          <h3>Binary Search Tree</h3>
+          <div class="svg-wrap">
+            <svg id="bstSvg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -33,6 +44,8 @@
 
       <div class="info-card">
         <p id="rankText">Rank của bạn: chưa có</p>
+        <p id="rbtTime">RBT: -- ms</p>
+        <p id="bstTime">BST: -- ms</p>
         <p id="statusText" class="status">Sẵn sàng.</p>
       </div>
     </aside>

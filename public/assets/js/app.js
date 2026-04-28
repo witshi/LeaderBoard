@@ -1,14 +1,18 @@
 import { RedBlackTree } from "./rbt.js";
+import { BinarySearchTree } from "./bst.js";
 import { fetchScores, submitScore, deletePlayer } from "./api.js";
 
 const tree = new RedBlackTree();
+const bst = new BinarySearchTree();
 const state = {
   scoresByUser: new Map(),
 };
-const lastPositions = new Map();
+const rbtLastPositions = new Map();
+const bstLastPositions = new Map();
 const ANIMATION_MS = 1000;
 
-const svg = document.getElementById("treeSvg");
+const rbtSvg = document.getElementById("rbtSvg");
+const bstSvg = document.getElementById("bstSvg");
 const form = document.getElementById("scoreForm");
 const usernameInput = document.getElementById("username");
 const scoreInput = document.getElementById("score");
@@ -16,6 +20,8 @@ const submitBtn = document.getElementById("submitBtn");
 const leaveBtn = document.getElementById("leaveBtn");
 const statusText = document.getElementById("statusText");
 const rankText = document.getElementById("rankText");
+const rbtTimeText = document.getElementById("rbtTime");
+const bstTimeText = document.getElementById("bstTime");
 
 function getOrCreateClientId() {
   let clientId = localStorage.getItem("lb_client_id");
@@ -81,8 +87,8 @@ function toSortedRankList(players) {
       return b.score - a.score;
     }
 
-    if (a.scoreUpdatedAt !== b.scoreUpdatedAt) {
-      return a.scoreUpdatedAt.localeCompare(b.scoreUpdatedAt);
+    if (a.scoreAchievedAt !== b.scoreAchievedAt) {
+      return a.scoreAchievedAt.localeCompare(b.scoreAchievedAt);
     }
 
     if (a.id !== b.id) {
@@ -111,13 +117,13 @@ function updateRankText() {
   rankText.textContent = `Rank của bạn: #${rankIndex + 1} (điểm: ${list[rankIndex].score})`;
 }
 
-function drawTree() {
+function drawTree(svg, activeTree, lastPositions) {
   const width = 1400;
   const height = 900;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.innerHTML = "";
 
-  tree.assignPositions(width, 110);
+  activeTree.assignPositions(width, 110);
   const top10 = new Set(toSortedRankList(tree.reverseInOrder()).slice(0, 10).map((p) => p.username));
 
   const animatedEdges = [];
@@ -125,7 +131,7 @@ function drawTree() {
   let hasMotion = false;
   const nextPositions = new Map();
 
-  for (const [parent, child] of tree.edges()) {
+  for (const [parent, child] of activeTree.edges()) {
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("class", "tree-edge");
 
@@ -150,7 +156,7 @@ function drawTree() {
     }
   }
 
-  for (const node of tree.nodes()) {
+  for (const node of activeTree.nodes()) {
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     group.setAttribute("class", "tree-node");
     group.dataset.username = node.player.username;
@@ -200,7 +206,6 @@ function drawTree() {
     for (const [username, pos] of nextPositions.entries()) {
       lastPositions.set(username, pos);
     }
-    updateRankText();
     return;
   }
 
@@ -232,8 +237,6 @@ function drawTree() {
   for (const [username, pos] of nextPositions.entries()) {
     lastPositions.set(username, pos);
   }
-
-  updateRankText();
 }
 
 function syncTreeWithApiData(scores) {
@@ -243,14 +246,15 @@ function syncTreeWithApiData(scores) {
       {
         id: Number(item.id),
         score: Number(item.score),
-        scoreUpdatedAt: String(item.score_updated_at || "9999-12-31 23:59:59"),
+        scoreAchievedAt: String(item.score_achieved_at || "9999-12-31 23:59:59"),
       },
     ])
   );
 
+  const rbtStart = performance.now();
   for (const [username, oldData] of state.scoresByUser.entries()) {
     if (!incoming.has(username)) {
-      tree.delete(tree.makeKey(oldData.score, oldData.scoreUpdatedAt, oldData.id, username));
+      tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
     }
   }
 
@@ -261,25 +265,64 @@ function syncTreeWithApiData(scores) {
         username,
         id: newData.id,
         score: newData.score,
-        scoreUpdatedAt: newData.scoreUpdatedAt,
+        scoreAchievedAt: newData.scoreAchievedAt,
       });
       continue;
     }
 
     if (
       oldData.score !== newData.score ||
-      oldData.scoreUpdatedAt !== newData.scoreUpdatedAt ||
+      oldData.scoreAchievedAt !== newData.scoreAchievedAt ||
       oldData.id !== newData.id
     ) {
-      tree.delete(tree.makeKey(oldData.score, oldData.scoreUpdatedAt, oldData.id, username));
+      tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
       tree.insert({
         username,
         id: newData.id,
         score: newData.score,
-        scoreUpdatedAt: newData.scoreUpdatedAt,
+        scoreAchievedAt: newData.scoreAchievedAt,
       });
     }
   }
+  const rbtEnd = performance.now();
+
+  const bstStart = performance.now();
+  for (const [username, oldData] of state.scoresByUser.entries()) {
+    if (!incoming.has(username)) {
+      bst.delete(bst.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
+    }
+  }
+
+  for (const [username, newData] of incoming.entries()) {
+    const oldData = state.scoresByUser.get(username);
+    if (oldData === undefined) {
+      bst.insert({
+        username,
+        id: newData.id,
+        score: newData.score,
+        scoreAchievedAt: newData.scoreAchievedAt,
+      });
+      continue;
+    }
+
+    if (
+      oldData.score !== newData.score ||
+      oldData.scoreAchievedAt !== newData.scoreAchievedAt ||
+      oldData.id !== newData.id
+    ) {
+      bst.delete(bst.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
+      bst.insert({
+        username,
+        id: newData.id,
+        score: newData.score,
+        scoreAchievedAt: newData.scoreAchievedAt,
+      });
+    }
+  }
+  const bstEnd = performance.now();
+
+  rbtTimeText.textContent = `RBT: ${Math.max(0, rbtEnd - rbtStart).toFixed(2)} ms`;
+  bstTimeText.textContent = `BST: ${Math.max(0, bstEnd - bstStart).toFixed(2)} ms`;
 
   state.scoresByUser = incoming;
 }
@@ -288,7 +331,9 @@ async function refreshScores(silent = false) {
   try {
     const scores = await fetchScores();
     syncTreeWithApiData(scores);
-    drawTree();
+    drawTree(rbtSvg, tree, rbtLastPositions);
+    drawTree(bstSvg, bst, bstLastPositions);
+    updateRankText();
     if (!silent) {
       setStatus("Đã đồng bộ dữ liệu leaderboard.");
     }

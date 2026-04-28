@@ -42,8 +42,20 @@ body {
   color: #c8d4e0;
 }
 
+.tree-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.tree-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  color: #dfe7f3;
+}
+
 .svg-wrap {
-  height: calc(100vh - 110px);
+  height: calc(100vh - 190px);
   background: linear-gradient(145deg, rgba(13, 27, 42, 0.35), rgba(27, 38, 59, 0.7));
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 18px;
@@ -173,7 +185,11 @@ button:disabled {
     border-bottom: 1px solid rgba(224, 225, 221, 0.15);
   }
 
+  .tree-compare {
+    grid-template-columns: 1fr;
+  }
+
   .svg-wrap {
-    height: 55vh;
+    height: 45vh;
   }
 }
