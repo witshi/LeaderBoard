@@ -21,9 +21,9 @@ final class LeaderboardService
         $this->ensureSchema();
         $pdo = $this->database->getConnection();
         $statement = $pdo->query(
-            'SELECT username, score, score_achieved_at
+            'SELECT id, username, score, score_achieved_at, score_updated_at
              FROM leaderboard
-             ORDER BY score DESC, score_achieved_at ASC, username ASC'
+             ORDER BY score DESC, score_updated_at ASC, id ASC, username ASC'
         );
 
         return $statement->fetchAll();
@@ -41,7 +41,8 @@ final class LeaderboardService
                     score_achieved_at = CASE
                         WHEN score <> VALUES(score) THEN CURRENT_TIMESTAMP
                         ELSE score_achieved_at
-                    END';
+                    END,
+                    score_updated_at = CURRENT_TIMESTAMP';
 
         $statement = $pdo->prepare($sql);
         $statement->execute([
@@ -65,6 +66,16 @@ final class LeaderboardService
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $row ?: null;
+    }
+
+    public function deletePlayerByUsername(string $username): int
+    {
+        $this->ensureSchema();
+        $pdo = $this->database->getConnection();
+        $statement = $pdo->prepare('DELETE FROM leaderboard WHERE username = :username');
+        $statement->execute([':username' => $username]);
+
+        return $statement->rowCount();
     }
 
     private function ensureSchema(): void
@@ -99,6 +110,19 @@ final class LeaderboardService
 
         if (!$ownerExists) {
             $pdo->exec('ALTER TABLE leaderboard ADD COLUMN owner_client_id VARCHAR(64) NULL AFTER username');
+        }
+
+        $updatedCheckStmt = $pdo->query(
+            "SELECT COUNT(*) AS total
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'leaderboard'
+               AND COLUMN_NAME = 'score_updated_at'"
+        );
+        $updatedExists = (int) ($updatedCheckStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0) > 0;
+
+        if (!$updatedExists) {
+            $pdo->exec('ALTER TABLE leaderboard ADD COLUMN score_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER score_achieved_at');
         }
 
         $this->schemaChecked = true;

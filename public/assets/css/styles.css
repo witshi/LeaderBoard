@@ -55,6 +55,23 @@ body {
   height: 100%;
 }
 
+.tree-node {
+  transition: transform 1s ease;
+}
+
+.tree-edge {
+  transition: all 1s ease;
+}
+
+.tree-node.is-moving circle {
+  fill: #f1f5f9;
+  stroke: #cbd5f5;
+}
+
+.tree-edge.is-moving {
+  stroke: #e2e8f0;
+}
+
 .control-panel {
   background: linear-gradient(180deg, #f6f7eb 0%, var(--panel) 100%);
   color: var(--ink);
@@ -97,6 +114,15 @@ button {
   background: linear-gradient(120deg, #ff6b35, #f2545b);
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.secondary-btn {
+  background: #4b5563;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
 button:hover:not(:disabled) {

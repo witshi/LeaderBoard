@@ -32,8 +32,8 @@ export class RedBlackTree {
     this.root = this.nil;
   }
 
-  makeKey(score, scoreAchievedAt, username) {
-    return { score, scoreAchievedAt, username };
+  makeKey(score, scoreUpdatedAt, id, username) {
+    return { score, scoreUpdatedAt, id, username };
   }
 
   compareKeys(a, b) {
@@ -41,9 +41,14 @@ export class RedBlackTree {
       return a.score - b.score;
     }
 
-    if (a.scoreAchievedAt !== b.scoreAchievedAt) {
-      // Earlier timestamp has higher priority for ranking when score ties.
-      return a.scoreAchievedAt < b.scoreAchievedAt ? 1 : -1;
+    if (a.scoreUpdatedAt !== b.scoreUpdatedAt) {
+      // Earlier update keeps higher priority when score ties.
+      return a.scoreUpdatedAt < b.scoreUpdatedAt ? 1 : -1;
+    }
+
+    if (a.id !== b.id) {
+      // Earlier insertion (smaller id) has higher priority when score/time tie.
+      return a.id < b.id ? 1 : -1;
     }
     
     //Nếu cả điểm và thời gian đạt được điểm đều giống nhau, so sánh theo tên người dùng.
@@ -97,7 +102,7 @@ export class RedBlackTree {
   }
 
   insert(player) {
-    const key = this.makeKey(player.score, player.scoreAchievedAt, player.username);
+    const key = this.makeKey(player.score, player.scoreUpdatedAt, player.id, player.username);
     const node = new RBNode(key, player, RED, this.nil);
 
     let parent = this.nil;
