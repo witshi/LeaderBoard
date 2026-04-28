@@ -1,16 +1,23 @@
 import { RedBlackTree } from "./rbt.js";
-import { fetchScores, submitScore } from "./api.js";
+import { BinarySearchTree } from "./bst.js";
+import { fetchScores, submitScore, deletePlayer } from "./api.js";
 
 const tree = new RedBlackTree();
+const bst = new BinarySearchTree();
 const state = {
   scoresByUser: new Map(),
 };
+const rbtLastPositions = new Map();
+const bstLastPositions = new Map();
+const ANIMATION_MS = 1000;
 
-const svg = document.getElementById("treeSvg");
+const rbtSvg = document.getElementById("rbtSvg");
+const bstSvg = document.getElementById("bstSvg");
 const form = document.getElementById("scoreForm");
 const usernameInput = document.getElementById("username");
 const scoreInput = document.getElementById("score");
 const submitBtn = document.getElementById("submitBtn");
+const leaveBtn = document.getElementById("leaveBtn");
 const statusText = document.getElementById("statusText");
 const rankText = document.getElementById("rankText");
 
@@ -38,6 +45,7 @@ function validateForm() {
   const hasUsername = usernameInput.value.trim() !== "";
   const hasScore = scoreInput.value.trim() !== "";
   submitBtn.disabled = !(hasUsername && hasScore);
+  leaveBtn.disabled = localStorage.getItem("lb_username") ? false : true;
 }
 
 function restoreLocalUser() {
@@ -46,6 +54,7 @@ function restoreLocalUser() {
     usernameInput.value = saved;
     usernameInput.disabled = true;
     submitBtn.textContent = "Cập nhật điểm";
+    leaveBtn.disabled = false;
   }
 }
 
@@ -58,20 +67,29 @@ function lockUserAfterFirstJoin() {
   localStorage.setItem("lb_username", username);
   usernameInput.disabled = true;
   submitBtn.textContent = "Cập nhật điểm";
+  leaveBtn.disabled = false;
+}
+
+function resetLocalUser() {
+  localStorage.removeItem("lb_username");
+  usernameInput.disabled = false;
+  usernameInput.value = "";
+  submitBtn.textContent = "Tham gia vào bảng xếp hạng";
+  leaveBtn.disabled = true;
+  rankText.textContent = "Rank của bạn: chưa có";
 }
 
 function toSortedRankList(players) {
-  return [...players].sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
+  return [...players];
+}
 
-    if (a.scoreAchievedAt !== b.scoreAchievedAt) {
-      return a.scoreAchievedAt.localeCompare(b.scoreAchievedAt);
-    }
+function getRankFromTree(activeTree, username) {
+  if (!username) {
+    return -1;
+  }
 
-    return a.username.localeCompare(b.username);
-  });
+  const list = toSortedRankList(activeTree.reverseInOrder());
+  return list.findIndex((item) => item.username === username);
 }
 
 function updateRankText() {
@@ -81,60 +99,120 @@ function updateRankText() {
     return;
   }
 
-  const list = toSortedRankList(tree.reverseInOrder());
-  const rankIndex = list.findIndex((item) => item.username === currentUser);
+  const rankIndex = getRankFromTree(tree, currentUser);
 
   if (rankIndex === -1) {
     rankText.textContent = "Rank của bạn: chưa có";
     return;
   }
 
-  rankText.textContent = `Rank của bạn: #${rankIndex + 1} (điểm: ${list[rankIndex].score})`;
+  const rbtList = toSortedRankList(tree.reverseInOrder());
+  rankText.textContent = `Rank của bạn: #${rankIndex + 1} (điểm: ${rbtList[rankIndex].score})`;
+
 }
 
-function drawTree() {
-  const width = 1400;
-  const height = 900;
+function getZoomScale(nodeCount) {
+  if (nodeCount <= 20) {
+    return 1.8;
+  }
+  if (nodeCount <= 40) {
+    return 1.4;
+  }
+  if (nodeCount <= 70) {
+    return 1.1;
+  }
+  return 0.95;
+}
+
+function getNodeRadius(nodeCount) {
+  if (nodeCount <= 20) {
+    return 34;
+  }
+  if (nodeCount <= 40) {
+    return 30;
+  }
+  return 28;
+}
+
+function drawTree(svg, activeTree, lastPositions) {
+  const baseWidth = 1400;
+  const baseHeight = 900;
+  const nodeCount = activeTree.countNodes();
+  const zoomScale = getZoomScale(nodeCount);
+  const nodeRadius = getNodeRadius(nodeCount);
+  const width = baseWidth / zoomScale;
+  const height = baseHeight / zoomScale;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.innerHTML = "";
 
-  tree.assignPositions(width, 110);
-  const top10 = new Set(toSortedRankList(tree.reverseInOrder()).slice(0, 10).map((p) => p.username));
+  activeTree.assignPositions(width, 110);
+  const nodes = activeTree.nodes();
+  let maxY = 0;
+  for (const node of nodes) {
+    if (node.y > maxY) {
+      maxY = node.y;
+    }
+  }
+  const dynamicHeight = Math.max(height, maxY + 140);
+  svg.setAttribute("viewBox", `0 0 ${width} ${dynamicHeight}`);
 
-  for (const [parent, child] of tree.edges()) {
+  const animatedEdges = [];
+  const animatedNodes = [];
+  let hasMotion = false;
+  const nextPositions = new Map();
+
+  for (const [parent, child] of activeTree.edges()) {
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(parent.x));
-    line.setAttribute("y1", String(parent.y));
-    line.setAttribute("x2", String(child.x));
-    line.setAttribute("y2", String(child.y));
+    line.setAttribute("class", "tree-edge");
+
+    const prevParent = lastPositions.get(parent.player.username);
+    const prevChild = lastPositions.get(child.player.username);
+    const startX1 = prevParent ? prevParent.x : parent.x;
+    const startY1 = prevParent ? prevParent.y : parent.y;
+    const startX2 = prevChild ? prevChild.x : child.x;
+    const startY2 = prevChild ? prevChild.y : child.y;
+
+    line.setAttribute("x1", String(startX1));
+    line.setAttribute("y1", String(startY1));
+    line.setAttribute("x2", String(startX2));
+    line.setAttribute("y2", String(startY2));
     line.setAttribute("stroke", "#a9bcd0");
     line.setAttribute("stroke-width", "2");
     svg.appendChild(line);
+
+    if (startX1 !== parent.x || startY1 !== parent.y || startX2 !== child.x || startY2 !== child.y) {
+      hasMotion = true;
+      animatedEdges.push({ line, parent, child });
+    }
   }
 
-  for (const node of tree.nodes()) {
+  for (const node of nodes) {
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("class", "tree-node");
+    group.dataset.username = node.player.username;
+
+    const previous = lastPositions.get(node.player.username);
+    const startX = previous ? previous.x : node.x;
+    const startY = previous ? previous.y : node.y;
+    group.setAttribute("transform", `translate(${startX}, ${startY})`);
 
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", String(node.x));
-    circle.setAttribute("cy", String(node.y));
-    circle.setAttribute("r", "28");
+    circle.setAttribute("cx", "0");
+    circle.setAttribute("cy", "0");
+    circle.setAttribute("r", String(nodeRadius));
     circle.setAttribute("fill", node.color === "RED" ? "#e63946" : "#1b1b1e");
-    circle.setAttribute("stroke", top10.has(node.player.username) ? "#ffd166" : "#f1faee");
-    circle.setAttribute("stroke-width", top10.has(node.player.username) ? "4" : "2");
-    if (top10.has(node.player.username)) {
-      circle.style.filter = "drop-shadow(0px 0px 8px #ffd166)";
-    }
+    circle.setAttribute("stroke", "#f1faee");
+    circle.setAttribute("stroke-width", "2");
 
     const userText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    userText.setAttribute("x", String(node.x));
-    userText.setAttribute("y", String(node.y - 7));
+    userText.setAttribute("x", "0");
+    userText.setAttribute("y", "-7");
     userText.setAttribute("class", "node-label");
     userText.textContent = node.player.username;
 
     const scoreText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    scoreText.setAttribute("x", String(node.x));
-    scoreText.setAttribute("y", String(node.y + 11));
+    scoreText.setAttribute("x", "0");
+    scoreText.setAttribute("y", "11");
     scoreText.setAttribute("class", "node-score");
     scoreText.textContent = String(node.player.score);
 
@@ -142,9 +220,50 @@ function drawTree() {
     group.appendChild(userText);
     group.appendChild(scoreText);
     svg.appendChild(group);
+
+    nextPositions.set(node.player.username, { x: node.x, y: node.y });
+    if (startX !== node.x || startY !== node.y) {
+      hasMotion = true;
+      animatedNodes.push({ group, x: node.x, y: node.y });
+    }
   }
 
-  updateRankText();
+  if (!hasMotion) {
+    lastPositions.clear();
+    for (const [username, pos] of nextPositions.entries()) {
+      lastPositions.set(username, pos);
+    }
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    for (const item of animatedEdges) {
+      item.line.classList.add("is-moving");
+      item.line.setAttribute("x1", String(item.parent.x));
+      item.line.setAttribute("y1", String(item.parent.y));
+      item.line.setAttribute("x2", String(item.child.x));
+      item.line.setAttribute("y2", String(item.child.y));
+    }
+
+    for (const item of animatedNodes) {
+      item.group.classList.add("is-moving");
+      item.group.setAttribute("transform", `translate(${item.x}, ${item.y})`);
+    }
+  });
+
+  setTimeout(() => {
+    for (const item of animatedEdges) {
+      item.line.classList.remove("is-moving");
+    }
+    for (const item of animatedNodes) {
+      item.group.classList.remove("is-moving");
+    }
+  }, ANIMATION_MS);
+
+  lastPositions.clear();
+  for (const [username, pos] of nextPositions.entries()) {
+    lastPositions.set(username, pos);
+  }
 }
 
 function syncTreeWithApiData(scores) {
@@ -152,28 +271,78 @@ function syncTreeWithApiData(scores) {
     scores.map((item) => [
       item.username,
       {
+        id: Number(item.id),
         score: Number(item.score),
         scoreAchievedAt: String(item.score_achieved_at || "9999-12-31 23:59:59"),
       },
     ])
   );
 
+  let hasChanges = false;
+
   for (const [username, oldData] of state.scoresByUser.entries()) {
     if (!incoming.has(username)) {
-      tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, username));
+      tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
     }
   }
 
   for (const [username, newData] of incoming.entries()) {
     const oldData = state.scoresByUser.get(username);
     if (oldData === undefined) {
-      tree.insert({ username, score: newData.score, scoreAchievedAt: newData.scoreAchievedAt });
+      tree.insert({
+        username,
+        id: newData.id,
+        score: newData.score,
+        scoreAchievedAt: newData.scoreAchievedAt,
+      });
       continue;
     }
 
-    if (oldData.score !== newData.score || oldData.scoreAchievedAt !== newData.scoreAchievedAt) {
-      tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, username));
-      tree.insert({ username, score: newData.score, scoreAchievedAt: newData.scoreAchievedAt });
+    if (
+      oldData.score !== newData.score ||
+      oldData.scoreAchievedAt !== newData.scoreAchievedAt ||
+      oldData.id !== newData.id
+    ) {
+      tree.delete(tree.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
+      tree.insert({
+        username,
+        id: newData.id,
+        score: newData.score,
+        scoreAchievedAt: newData.scoreAchievedAt,
+      });
+    }
+  }
+
+  for (const [username, oldData] of state.scoresByUser.entries()) {
+    if (!incoming.has(username)) {
+      bst.delete(bst.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
+    }
+  }
+
+  for (const [username, newData] of incoming.entries()) {
+    const oldData = state.scoresByUser.get(username);
+    if (oldData === undefined) {
+      bst.insert({
+        username,
+        id: newData.id,
+        score: newData.score,
+        scoreAchievedAt: newData.scoreAchievedAt,
+      });
+      continue;
+    }
+
+    if (
+      oldData.score !== newData.score ||
+      oldData.scoreAchievedAt !== newData.scoreAchievedAt ||
+      oldData.id !== newData.id
+    ) {
+      bst.delete(bst.makeKey(oldData.score, oldData.scoreAchievedAt, oldData.id, username));
+      bst.insert({
+        username,
+        id: newData.id,
+        score: newData.score,
+        scoreAchievedAt: newData.scoreAchievedAt,
+      });
     }
   }
 
@@ -184,7 +353,9 @@ async function refreshScores(silent = false) {
   try {
     const scores = await fetchScores();
     syncTreeWithApiData(scores);
-    drawTree();
+    drawTree(rbtSvg, tree, rbtLastPositions);
+    drawTree(bstSvg, bst, bstLastPositions);
+    updateRankText();
     if (!silent) {
       setStatus("Đã đồng bộ dữ liệu leaderboard.");
     }
@@ -230,6 +401,25 @@ form.addEventListener("submit", async (event) => {
     scoreInput.value = "";
     validateForm();
     setStatus("Cập nhật điểm thành công.");
+    await refreshScores(true);
+  } catch (error) {
+    setStatus(formatError(error));
+  }
+});
+
+leaveBtn.addEventListener("click", async () => {
+  const username = localStorage.getItem("lb_username") || "";
+  if (!username) {
+    setStatus("Bạn chưa tham gia bảng xếp hạng.");
+    leaveBtn.disabled = true;
+    return;
+  }
+
+  try {
+    const clientId = getOrCreateClientId();
+    await deletePlayer(username, clientId);
+    resetLocalUser();
+    setStatus("Bạn đã rời khỏi cuộc chơi.");
     await refreshScores(true);
   } catch (error) {
     setStatus(formatError(error));

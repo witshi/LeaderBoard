@@ -158,6 +158,105 @@ final class LeaderboardController
         }
     }
 
+    public function deletePlayer(): void
+    {
+        $this->startSession();
+
+        $input = $this->getRequestData();
+        $username = is_string($input['username'] ?? null) ? trim($input['username']) : ($input['username'] ?? null);
+        $clientId = is_string($input['client_id'] ?? null) ? trim($input['client_id']) : '';
+
+        $errors = [];
+
+        $usernameError = Validator::validateUsername($username);
+        if ($usernameError !== null) {
+            $errors['username'] = $usernameError;
+        }
+
+        if ($clientId === '' || mb_strlen($clientId) > 64) {
+            $errors['client_id'] = 'Danh tính phiên không hợp lệ. Vui lòng tải lại trang rồi thử lại.';
+        }
+
+        if (!empty($errors)) {
+            Response::json([
+                'success' => false,
+                'error' => 'Dữ liệu nhập không hợp lệ.',
+                'details' => $errors,
+            ], 422);
+            return;
+        }
+
+        $username = (string) $username;
+
+        try {
+            $existingPlayer = $this->service->getPlayerByUsername($username);
+        } catch (DockerDatabaseUnavailableException $exception) {
+            Response::json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 503);
+            return;
+        } catch (PDOException $exception) {
+            Response::json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 500);
+            return;
+        }
+
+        if ($existingPlayer === null) {
+            Response::json([
+                'success' => false,
+                'error' => 'Người chơi không tồn tại.',
+            ], 404);
+            return;
+        }
+
+        $ownerClientId = (string) ($existingPlayer['owner_client_id'] ?? '');
+        if ($ownerClientId !== '' && $ownerClientId !== $clientId) {
+            Response::json([
+                'success' => false,
+                'error' => 'Bạn không có quyền xóa người chơi này.',
+            ], 403);
+            return;
+        }
+
+        try {
+            $deleted = $this->service->deletePlayerByUsername($username);
+
+            if ($deleted > 0) {
+                if (isset($_SESSION['last_score_update_at'][$username])) {
+                    unset($_SESSION['last_score_update_at'][$username]);
+                }
+                Response::json([
+                    'success' => true,
+                    'message' => 'Đã xóa người chơi khỏi bảng xếp hạng.',
+                ], 200);
+                return;
+            }
+
+            Response::json([
+                'success' => false,
+                'error' => 'Không thể xóa người chơi.',
+            ], 500);
+        } catch (DockerDatabaseUnavailableException $exception) {
+            Response::json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 503);
+        } catch (PDOException $exception) {
+            Response::json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 500);
+        } catch (Throwable $exception) {
+            Response::json([
+                'success' => false,
+                'error' => 'Lỗi không xác định: ' . $exception->getMessage(),
+            ], 500);
+        }
+    }
+
     private function startSession(): void
     {
         if (session_status() === PHP_SESSION_NONE) {

@@ -48,3 +48,24 @@ export async function submitScore(username, score, clientId) {
 
   return payload;
 }
+
+export async function deletePlayer(username, clientId) {
+  const response = await fetch(`${API_BASE}/delete_player.php`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify({ username, client_id: clientId }),
+  });
+
+  const payload = await parseJsonSafe(response);
+  if (!response.ok || !payload.success) {
+    const error = new Error(payload.error || "Không thể xóa người chơi.");
+    error.status = response.status;
+    error.details = payload.details || null;
+    throw error;
+  }
+
+  return payload;
+}

@@ -6,6 +6,5 @@ CREATE TABLE IF NOT EXISTS leaderboard (
     username VARCHAR(50) NOT NULL UNIQUE, 
     owner_client_id VARCHAR(64) NULL,
     score INT NOT NULL DEFAULT 0,
-    score_achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- Tự động cập nhật thời gian
+        score_achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP --Chỉ cập nhật khi điểm thay đổi
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

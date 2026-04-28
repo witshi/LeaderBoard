@@ -21,9 +21,9 @@ final class LeaderboardService
         $this->ensureSchema();
         $pdo = $this->database->getConnection();
         $statement = $pdo->query(
-            'SELECT username, score, score_achieved_at
+            'SELECT id, username, score, score_achieved_at
              FROM leaderboard
-             ORDER BY score DESC, score_achieved_at ASC, username ASC'
+             ORDER BY score DESC, score_achieved_at ASC, id ASC, username ASC'
         );
 
         return $statement->fetchAll();
@@ -36,12 +36,12 @@ final class LeaderboardService
         $sql = 'INSERT INTO leaderboard (username, score, owner_client_id)
                 VALUES (:username, :score, :owner_client_id)
                 ON DUPLICATE KEY UPDATE
-                    score = VALUES(score),
-                    owner_client_id = COALESCE(owner_client_id, VALUES(owner_client_id)),
                     score_achieved_at = CASE
                         WHEN score <> VALUES(score) THEN CURRENT_TIMESTAMP
                         ELSE score_achieved_at
-                    END';
+                    END,
+                    score = VALUES(score),
+                    owner_client_id = COALESCE(owner_client_id, VALUES(owner_client_id))';
 
         $statement = $pdo->prepare($sql);
         $statement->execute([
@@ -65,6 +65,16 @@ final class LeaderboardService
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $row ?: null;
+    }
+
+    public function deletePlayerByUsername(string $username): int
+    {
+        $this->ensureSchema();
+        $pdo = $this->database->getConnection();
+        $statement = $pdo->prepare('DELETE FROM leaderboard WHERE username = :username');
+        $statement->execute([':username' => $username]);
+
+        return $statement->rowCount();
     }
 
     private function ensureSchema(): void
