@@ -1,11 +1,11 @@
 
 # LeaderBoard - Trực quan Cây Đỏ-Đen
 
-Ứng dụng **minh họa Red-Black Tree (RBT)** và Binary Search Tree (BST) để so sánh.
+Ứng dụng mô phỏng bảng xếp hạng người chơi và trực quan hóa dữ liệu bằng cấu trúc **Cây Đỏ-Đen (Red-Black Tree)** kết hợp **Cây tìm kiếm nhị phân (Binary Search Tree)** để so sánh.
+Mỗi người chơi được biểu diễn là một node. Khi có thao tác **thêm, xóa, hoặc cập nhật điểm**, cây sẽ tự động xử lý logic (chèn, xóa, xoay, đổi màu) và kích hoạt hiệu ứng di chuyển (animation) trực tiếp trên màn hình.
 
 ## Tổng quan
 
-- **Giao diện**: Vẽ 2 cây side-by-side bằng SVG (RBT trái, BST phải)
 - **Backend**: PHP + MySQL lưu dữ liệu người chơi
 - **Frontend**: Đồng bộ dữ liệu từ API, cập nhật cây, tính hạng, vẽ animation
 
@@ -41,25 +41,16 @@ Mỗi người chơi là một node. Khi bạn **thêm, xóa, hoặc cập nhậ
 
 ## Quy tắc xếp hạng
 
-```javascript
-compareKeys(a, b) {
-  // 1. Điểm cao hơn → hạng tốt hơn
-  if (a.score !== b.score) {
-    return a.score - b.score;
-  }
-  // 2. Cùng điểm → đạt sớm hơn → hạng tốt hơn
-  if (a.scoreAchievedAt !== b.scoreAchievedAt) {
-    return a.scoreAchievedAt < b.scoreAchievedAt ? 1 : -1;
-  }
-  return 0;
-}
-```
+Xác định vị trí node (hạng) dựa trên hàm `compareKeys(a, b)` với 2 tiêu chí ưu tiên:
+
+1. **Điểm số:** Điểm cao hơn sẽ có hạng tốt hơn (nằm bên phải cây).
+2. **Thời gian:** Nếu điểm bằng nhau, ai đạt được điểm số đó sớm hơn (`scoreAchievedAt` nhỏ hơn) sẽ có hạng tốt hơn.
 
 ---
 
 ## Hàm tìm hạng O(log n) — `getRank(key)`
 
-Thay vì duyệt toàn bộ cây O(n), mỗi node lưu `size` (số node trong cây con):
+Thay vì duyệt toàn bộ cây O(n), ứng dụng lưu thêm thuộc tính `size` (tổng số node trong nhánh) tại mỗi node:
 
 ```javascript
 getRank(key) {
@@ -85,22 +76,11 @@ getRank(key) {
   return -1;
 }
 ```
+Quy tắc tính hạng cốt lõi: **Hạng của bạn = 1 + (Tổng số người chơi có điểm cao hơn bạn)**.
+
+Hàm `getRank(key)` sẽ bắt đầu từ đỉnh cây (`root`) đi xuống. Tại mỗi ngã rẽ, nó thực hiện logic sau:
+
+* **Trường hợp 1 (Tìm trúng đích):** Đã tìm thấy node của bạn. Thuật toán sẽ lấy thứ hạng hiện tại cộng thêm toàn bộ số node ở nhánh phải (`right.size` - những người có điểm cao hơn) và trả về kết quả.
+* **Trường hợp 2 (Rẽ trái):** Bạn có điểm thấp hơn node hiện tại nên bị đẩy sang trái. Do đó, node hiện tại (`+1`) và toàn bộ nhánh phải của nó (`right.size`) đều lớn điểm hơn bạn. Thuật toán cộng dồn con số này vào biến `rank` rồi mới đi tiếp.
+* **Trường hợp 3 (Rẽ phải):** Bạn có điểm cao hơn node hiện tại. Những người ở nhánh trái và node hiện tại đều có điểm thấp hơn bạn, không thể đẩy thứ hạng của bạn xuống. Thuật toán giữ nguyên `rank` và đi tiếp sang phải.
 ---
-
-## Quy trình khi bạn nhập dữ liệu
-
-1. Nhập **Username** + **Điểm số** → submit
-2. Gửi tới API backend (PHP)
-3. Backend upsert vào MySQL (nếu score khác → cập nhật `score_achieved_at`)
-4. Frontend fetch dữ liệu mới
-5. **Đồng bộ cây**:
-   - Người chơi mới → `tree.insert()`
-   - Người chơi bị xóa → `tree.delete()`
-   - Điểm thay đổi → `tree.delete(key cũ)` + `tree.insert(key mới)`
-6. Vẽ SVG với animation → **bạn thấy cây xoay, node di chuyển!**
-
-## Ghi chú
-
-- **client_id** được lưu localStorage để khóa username (1 người/device)
-- **rate_limit**: 30s giữa 2 lần cập nhật điểm (tránh spam)
-- **score_achieved_at**: Chỉ cập nhật khi điểm **thay đổi**
