@@ -9,6 +9,7 @@ class RBNode {
     this.left = nil;
     this.right = nil;
     this.parent = nil;
+    this.size = 1;
     this.x = 0;
     this.y = 0;
   }
@@ -23,6 +24,7 @@ export class RedBlackTree {
       parent: null,
       key: null,
       player: null,
+      size: 0,
       x: 0,
       y: 0,
     };
@@ -46,16 +48,12 @@ export class RedBlackTree {
       return a.scoreAchievedAt < b.scoreAchievedAt ? 1 : -1;
     }
 
-    if (a.id !== b.id) {
-      // Earlier insertion (smaller id) has higher priority when score/time tie.
-      return a.id < b.id ? 1 : -1;
-    }
-
     return 0;
   }
 
   rotateLeft(x) {
     const y = x.right;
+    const xSize = x.size;
     x.right = y.left;
     if (y.left !== this.nil) {
       y.left.parent = x;
@@ -72,10 +70,14 @@ export class RedBlackTree {
 
     y.left = x;
     x.parent = y;
+
+    this.updateSize(x);
+    y.size = xSize;
   }
 
   rotateRight(y) {
     const x = y.left;
+    const ySize = y.size;
     y.left = x.right;
     if (x.right !== this.nil) {
       x.right.parent = y;
@@ -92,6 +94,24 @@ export class RedBlackTree {
 
     x.right = y;
     y.parent = x;
+
+    this.updateSize(y);
+    x.size = ySize;
+  }
+
+  updateSize(node) {
+    if (node === this.nil) {
+      return;
+    }
+    node.size = node.left.size + node.right.size + 1;
+  }
+
+  updateSizeUpwards(node) {
+    let current = node;
+    while (current !== this.nil) {
+      this.updateSize(current);
+      current = current.parent;
+    }
   }
 
   insert(player) {
@@ -122,6 +142,8 @@ export class RedBlackTree {
     } else {
       parent.right = node;
     }
+
+    this.updateSizeUpwards(node.parent);
 
     this.fixInsert(node);
     return node;
@@ -209,17 +231,21 @@ export class RedBlackTree {
     let y = z;
     let yOriginalColor = y.color;
     let x;
+    let yOriginalParent = y.parent;
 
     if (z.left === this.nil) {
       x = z.right;
       this.transplant(z, z.right);
+      this.updateSizeUpwards(x.parent);
     } else if (z.right === this.nil) {
       x = z.left;
       this.transplant(z, z.left);
+      this.updateSizeUpwards(x.parent);
     } else {
       y = this.minimum(z.right);
       yOriginalColor = y.color;
       x = y.right;
+      yOriginalParent = y.parent;
       if (y.parent === z) {
         x.parent = y;
       } else {
@@ -231,6 +257,12 @@ export class RedBlackTree {
       y.left = z.left;
       y.left.parent = y;
       y.color = z.color;
+      this.updateSize(y);
+      this.updateSizeUpwards(x.parent);
+      if (yOriginalParent !== this.nil && yOriginalParent !== y.parent) {
+        this.updateSizeUpwards(yOriginalParent);
+      }
+      this.updateSizeUpwards(y.parent);
     }
 
     if (yOriginalColor === BLACK) {
@@ -324,6 +356,28 @@ export class RedBlackTree {
     return collector;
   }
 
+  getRank(key) {
+    let current = this.root;
+    let rank = 1;
+
+    while (current !== this.nil) {
+      const cmp = this.compareKeys(key, current.key);
+      if (cmp === 0) {
+        rank += current.right.size;
+        return rank;
+      }
+
+      if (cmp < 0) {
+        rank += current.right.size + 1;
+        current = current.left;
+      } else {
+        current = current.right;
+      }
+    }
+
+    return -1;
+  }
+
   assignPositions(width = 1400, levelHeight = 100) {
     let order = 0;
 
@@ -346,7 +400,7 @@ export class RedBlackTree {
     if (node === this.nil) {
       return 0;
     }
-    return 1 + this.countNodes(node.left) + this.countNodes(node.right);
+    return node.size;
   }
 
   edges(node = this.root, collector = []) {

@@ -88,8 +88,13 @@ function getRankFromTree(activeTree, username) {
     return -1;
   }
 
-  const list = toSortedRankList(activeTree.reverseInOrder());
-  return list.findIndex((item) => item.username === username);
+  const current = state.scoresByUser.get(username);
+  if (!current) {
+    return -1;
+  }
+
+  const key = activeTree.makeKey(current.score, current.scoreAchievedAt, current.id, username);
+  return activeTree.getRank(key);
 }
 
 function updateRankText() {
@@ -99,15 +104,15 @@ function updateRankText() {
     return;
   }
 
-  const rankIndex = getRankFromTree(tree, currentUser);
-
-  if (rankIndex === -1) {
+  const rank = getRankFromTree(tree, currentUser);
+  if (rank === -1) {
     rankText.textContent = "Rank của bạn: chưa có";
     return;
   }
 
-  const rbtList = toSortedRankList(tree.reverseInOrder());
-  rankText.textContent = `Rank của bạn: #${rankIndex + 1} (điểm: ${rbtList[rankIndex].score})`;
+  const current = state.scoresByUser.get(currentUser);
+  const currentScore = current ? current.score : 0;
+  rankText.textContent = `Rank của bạn: #${rank} (điểm: ${currentScore})`;
 
 }
 

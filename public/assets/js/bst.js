@@ -16,10 +16,6 @@ export class BinarySearchTree {
       return a.scoreAchievedAt < b.scoreAchievedAt ? 1 : -1;
     }
 
-    if (a.id !== b.id) {
-      return a.id < b.id ? 1 : -1;
-    }
-
     return 0;
   }
 
